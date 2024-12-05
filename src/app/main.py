@@ -1,140 +1,30 @@
-# import os
-# import json
-# import flet as ft
-
-# from emaworld_api import EmaworldApiCleint
-# from stox_api import StoxApiClient
-
-
-# def main(page: ft.Page):
-#     page.title = "User Management and Reports"
-#     page.scroll = "auto"
-#     page.theme_mode = "light"
-
-#     # Callbacks
-#     def add_user(e):
-#         data_dir = os.path.join(os.path.dirname(__file__), "data")
-#         if not os.path.exists(data_dir):
-#             os.makedirs(data_dir)
-
-#         users_file = os.path.join(data_dir, "users.json")
-#         if not os.path.exists(users_file):
-#             with open(users_file, "w") as f:
-#                 json.dump([], f)
-
-#         with open(users_file, "r+") as f:
-#             data = json.load(f)
-#             data.append({"username": username.value, "password": password.value})
-#             f.seek(0)
-#             json.dump(data, f, indent=4)
-#             f.truncate()
-
-#         username.value = ""
-#         password.value = ""
-#         page.update()
-
-#     def select_user(e):
-#         pass
-
-#     def run_task(e, email, password):
-#         progress_bar.value = None
-#         page.update()
-
-#         ema_client = EmaworldApiCleint(email=email, password=password)
-#         stox_client = StoxApiClient(
-#             token="32|Ef72nipQ7p1IcLk1sgwnK0J6kgIti4040BXUor9Kc4736f5e",
-#             api_client=ema_client,
-#         )
-
-#         print("Success" if stox_client.send_oreders().get("success") else "Failed")
-
-#         progress_bar.value = 0.0
-#         page.update()
-
-#     def toggle_report(e):
-#         # Access the title property of the ListTile's title control
-#         report_title = e.control.title.value if e.control.title else "Unknown"
-
-#     # User Management Elements
-#     username = ft.TextField(label="Username", expand=True)
-#     password = ft.TextField(label="Password", password=True, expand=True)
-#     add_user_btn = ft.ElevatedButton("Add User", on_click=add_user)
-
-#     # Dropdown for users
-#     users_file = os.path.join(os.path.dirname(__file__), "data", "users.json")
-#     with open(users_file) as f:
-#         users = json.load(f)
-
-#     user_dropdown = ft.Dropdown(
-#         label="Select User",
-#         options=[ft.dropdown.Option(user["username"]) for user in users],
-#         on_change=select_user,
-#     )
-
-#     # Run button and progress bar
-#     run_btn = ft.ElevatedButton(
-#         "Run",
-#         on_click=lambda e: run_task(e, email=username.value, password=password.value),
-#     )
-#     progress_bar = ft.ProgressBar(width=400, value=0.0)
-
-#     user_management = ft.Column(
-#         [
-#             ft.Row([username, password], spacing=10),
-#             ft.Row([add_user_btn, user_dropdown], alignment="spaceBetween", spacing=10),
-#             ft.Divider(),
-#             ft.Row([run_btn, progress_bar], spacing=10, alignment="center"),
-#         ],
-#         spacing=20,
-#         alignment="start",
-#     )
-
-#     # Reports Elements
-#     report_list = ft.Column(
-#         [
-#             ft.ListTile(
-#                 title=ft.Text(f"Report {i+1}"),
-#                 subtitle=ft.Text("Click to view details"),
-#                 leading=ft.Icon(ft.icons.REPORT),
-#                 trailing=ft.Icon(ft.icons.EXPAND_MORE),
-#                 on_click=toggle_report,
-#             )
-#             for i in range(5)  # Example: 5 reports
-#         ]
-#     )
-
-#     reports = ft.Column(
-#         [
-#             ft.Text("Reports Section", size=20),
-#             report_list,
-#         ],
-#         spacing=10,
-#         alignment="start",
-#     )
-
-#     # Tabs
-#     tabs = ft.Tabs(
-#         selected_index=0,
-#         tabs=[
-#             ft.Tab(text="User Management", content=user_management),
-#             ft.Tab(text="Reports", content=reports),
-#         ],
-#         expand=True,
-#     )
-
-#     # Add tabs to the page
-#     page.add(tabs)
-
-
-# ft.app(target=main)
-
-
 import os
 import json
 import flet as ft
 
-from emaworld_api import EmaworldApiCleint
-from stox_api import StoxApiClient
+from app.emaworld_api import EmaworldApiCleint
+from app.stox_api import StoxApiClient
+
+
+class StatusScreen:
+    def __init__(self, page):
+        self.page = page
+        self.status_text = ft.Text(value="")
+        self.layout = self.create_layout()
+
+    def show_status(self, status):
+        self.status_text.value = status
+        self.page.update()
+
+    def create_layout(self):
+        return ft.Column(
+            [
+                ft.Text("Status: ", size=20),
+                self.status_text,
+            ],
+            spacing=10,
+            alignment="start",
+        )
 
 
 class UserManagement:
@@ -148,6 +38,7 @@ class UserManagement:
         self.run_btn = ft.ElevatedButton("Run", on_click=self.run_task)
         self.add_user_btn = ft.ElevatedButton("Add User", on_click=self.add_user)
         self.user_dropdown = self.create_user_dropdown()
+        self.status_screen = StatusScreen(page)
 
         self.layout = self.create_layout()
 
@@ -200,8 +91,9 @@ class UserManagement:
             token="32|Ef72nipQ7p1IcLk1sgwnK0J6kgIti4040BXUor9Kc4736f5e",
             api_client=ema_client,
         )
-
-        print("Success" if stox_client.send_oreders().get("success") else "Failed")
+        sent_oreders = stox_client.send_oreders()
+        status = "Success" if sent_oreders.get("success") else "Failed"
+        self.status_screen.show_status(f"{status}: {sent_oreders.get('count')} orders sent")
         self.progress_bar.value = 0.0
         self.page.update()
 
@@ -212,6 +104,7 @@ class UserManagement:
                 ft.Row([self.add_user_btn, self.user_dropdown], alignment="spaceBetween", spacing=10),
                 ft.Divider(),
                 ft.Row([self.run_btn, self.progress_bar], spacing=10, alignment="center"),
+                self.status_screen.layout,
             ],
             spacing=20,
             alignment="start",
@@ -280,3 +173,4 @@ def main(page: ft.Page):
 
 
 ft.app(target=main)
+

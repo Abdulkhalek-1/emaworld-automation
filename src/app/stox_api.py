@@ -63,7 +63,7 @@ class StoxApiClient:
         orders = self.api_client.get_all_orders_with_details()
         print(f"Got {len(orders)} orders")
         if not orders:
-            return {"success": True}
+            return {"success": True, "count": 0}
         parsed_orders = [self.parse_oreder(order) for order in orders]
         req = self.session.post(
             "/orders/store",
@@ -71,7 +71,9 @@ class StoxApiClient:
                 "orders": parsed_orders,
             },
         )
-        return req.json()
+        data = req.json()
+        data.update({"count": len(orders)})
+        return data
 
     def list_orders(self):
         req = self.session.get("/orders")
